@@ -24,7 +24,8 @@ self.addEventListener('install',e=>{
             '/index.html',
             'css/style.css',
             '/img/main.jpg',
-            '/js/app.js'
+            '/js/app.js',
+            '/img/no-image.jpg'
         ]);
     });//cacheProm
 
@@ -84,6 +85,7 @@ self.addEventListener('fetch',e=>{
 
     //4-Cache with network update->
     //Cuando el rendimiento es critico
+    /*
     if (e.request.url.includes('bootstrap')) {
          return e.respondWith(caches.match(e.request));
     }
@@ -93,6 +95,40 @@ self.addEventListener('fetch',e=>{
         });
 
         return cache.match(e.request);
+    });
+
+    e.respondWith(respuesta);
+    */
+
+    //5-Cache & Network Race->Compiten para ver quien response primero
+    //Cache o la red
+
+    const respuesta=new Promise((resolve,reject)=>{
+        let rechazada=false;
+
+        const falloUnaVez=()=>{
+            if (rechazada) {
+                if (/\.(png|jpg)$/i.test(e.request.url)) {
+                    resolve(caches.match('/img/no-image.jpg'));
+                }else{
+                    reject('No se encontro respuesta');
+                }
+            } else {
+                rechazada=true;
+            }
+        };
+
+        fetch(e.request).then(res=>{
+            if (res.ok) {
+                resolve(res);
+            }else{
+                falloUnaVez();
+            }
+        }).catch(falloUnaVez);
+
+        caches.match(e.request).then(res=>{
+            res? resolve(res) : falloUnaVez();
+        }).catch(falloUnaVez);
     });
 
     e.respondWith(respuesta);
